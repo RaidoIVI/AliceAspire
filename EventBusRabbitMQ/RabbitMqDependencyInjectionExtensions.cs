@@ -18,20 +18,16 @@ public static class RabbitMqDependencyInjectionExtensions
             ((ConnectionFactory)factory).DispatchConsumersAsync = true;
         });
 
-        // RabbitMQ.Client doesn't have built-in support for OpenTelemetry, so we need to add it ourselves
         builder.Services.AddOpenTelemetry()
             .WithTracing(tracing =>
             {
                 tracing.AddSource(RabbitMqTelemetry.ActivitySourceName);
             });
 
-        // Options support
         builder.Services.Configure<EventBusOptions>(builder.Configuration.GetSection(SectionName));
 
-        // Abstractions on top of the core client API
         builder.Services.AddSingleton<RabbitMqTelemetry>();
         builder.Services.AddSingleton<IEventBus, RabbitMqEventBus>();
-        // Start consuming messages as soon as the application starts
         builder.Services.AddSingleton<IHostedService>(sp => (RabbitMqEventBus)sp.GetRequiredService<IEventBus>());
 
         return new EventBusBuilder(builder.Services);

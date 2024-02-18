@@ -22,17 +22,17 @@ public static class EventBusBuilderExtensions
         where T : IntegrationEvent
         where TH : class, IIntegrationEventHandler<T>
     {
-        // Use keyed services to register multiple handlers for the same event type
-        // the consumer can use IKeyedServiceProvider.GetKeyedService<IIntegrationEventHandler>(typeof(T)) to get all
-        // handlers for the event type.
+        // Использовать службы с ключами для регистрации нескольких обработчиков для одного и того же типа событий.
+        // IKeyedServiceProvider.GetKeyedService<IIntegrationEventHandler>(typeof(T)) для получеия всех обработчиков.
+        
         eventBusBuilder.Services.AddKeyedTransient<IIntegrationEventHandler, TH>(typeof(T));
 
         eventBusBuilder.Services.Configure<EventBusSubscriptionInfo>(o =>
         {
-            // Keep track of all registered event types and their name mapping. We send these event types over the message bus
+            // Отслеживание все зарегистрированные типы событий и сопоставление их имен.
             // and we don't want to do Type.GetType, so we keep track of the name mapping here.
 
-            // This list will also be used to subscribe to events from the underlying message broker implementation.
+            // Этот список используется для подписки на события базовой реализации брокера сообщений.
             o.EventTypes[typeof(T).Name] = typeof(T);
         });
 

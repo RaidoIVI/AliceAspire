@@ -61,17 +61,11 @@ public class RabbitMqEventBus(
         channel.ExchangeDeclare(exchange: ExchangeName, type: "direct");
 
         var body = SerializeMessage(@event);
-
-        // Start an activity with a name following the semantic convention of the OpenTelemetry messaging specification.
-        // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md
         var activityName = $"{routingKey} publish";
 
         return policy.ExecuteAsync(() =>
         {
             using var activity = _activitySource.StartActivity(activityName, ActivityKind.Client);
-
-            // Depending on Sampling (and whether a listener is registered or not), the activity above may not be created.
-            // If it is created, then propagate its context. If it is not created, the propagate the Current context, if any.
 
             ActivityContext contextToInject = default;
 
@@ -85,7 +79,6 @@ public class RabbitMqEventBus(
             }
 
             var properties = channel.CreateBasicProperties();
-            // persistent
             properties.DeliveryMode = 2;
 
             static void InjectTraceContextIntoBasicProperties(IBasicProperties props, string key, string value)
@@ -127,8 +120,6 @@ public class RabbitMqEventBus(
     {
         if (activity is not null)
         {
-            // These tags are added demonstrating the semantic conventions of the OpenTelemetry messaging specification
-            // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md
             activity.SetTag("messaging.system", "rabbitmq");
             activity.SetTag("messaging.destination_kind", "queue");
             activity.SetTag("messaging.operation", operation);
@@ -154,12 +145,9 @@ public class RabbitMqEventBus(
             return [];
         }
 
-        // Extract the PropagationContext of the upstream parent from the message headers.
         var parentContext = _propagator.Extract(default, eventArgs.BasicProperties, ExtractTraceContextFromBasicProperties);
         Baggage.Current = parentContext.Baggage;
 
-        // Start an activity with a name following the semantic convention of the OpenTelemetry messaging specification.
-        // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/messaging/messaging-spans.md
         var activityName = $"{eventArgs.RoutingKey} receive";
 
         using var activity = _activitySource.StartActivity(activityName, ActivityKind.Client, parentContext.ActivityContext);
@@ -187,9 +175,6 @@ public class RabbitMqEventBus(
             activity.SetExceptionTags(ex);
         }
 
-        // Even on exception we take the message off the queue.
-        // in a REAL WORLD app this should be handled with a Dead Letter Exchange (DLX). 
-        // For more information see: https://www.rabbitmq.com/dlx.html
         _consumerChannel.BasicAck(eventArgs.DeliveryTag, multiple: false);
     }
 
@@ -208,12 +193,8 @@ public class RabbitMqEventBus(
             return;
         }
 
-        // REVIEW: This could be done in parallel
-
-        // Get all the handlers using the event type as the key
         foreach (var handler in scope.ServiceProvider.GetKeyedServices<IIntegrationEventHandler>(eventType))
         {
-            // Deserialize the event
             var integrationEvent = DeserializeMessage(message, eventType);
 
             await handler.Handle(integrationEvent);
@@ -238,8 +219,6 @@ public class RabbitMqEventBus(
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        // Messaging is async so we don't need to wait for it to complete. On top of this
-        // the APIs are blocking, so we need to run this on a background thread.
         _ = Task.Factory.StartNew(() =>
         {
             try
