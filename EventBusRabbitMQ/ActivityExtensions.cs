@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace EventBusRabbitMQ;
+namespace EventBusRabbitMq;
 
 internal static class ActivityExtensions
 {

@@ -12,7 +12,7 @@ builder.AddRedisOutputCache("cache");
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("http://apiservice"));
+builder.Services.AddHttpClient<WeatherApiClient>(client => client.BaseAddress = new("http://api-service"));
 
 var app = builder.Build();
 

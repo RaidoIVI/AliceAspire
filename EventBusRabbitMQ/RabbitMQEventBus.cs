@@ -16,7 +16,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client.Exceptions;
 
-namespace EventBusRabbitMQ;
+namespace EventBusRabbitMq;
 
 public class RabbitMqEventBus(
     ILogger<RabbitMqEventBus> logger,

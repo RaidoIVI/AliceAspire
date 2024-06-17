@@ -1,4 +1,4 @@
-﻿namespace EventBusRabbitMQ;
+﻿namespace EventBusRabbitMq;
 
 public class EventBusOptions(string subscriptionClientName)
 {

@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
-namespace EventBusRabbitMQ;
+namespace EventBusRabbitMq;
 
 public static class RabbitMqDependencyInjectionExtensions
 {
