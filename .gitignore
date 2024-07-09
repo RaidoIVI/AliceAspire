@@ -57,3 +57,4 @@
 /.idea/.idea.AliceAspire/.idea
 /.vs/AliceAspire/solutionOpened
 /MessageAPI/obj
+/MessageAPI/bin/Debug/net8.0
