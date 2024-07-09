@@ -12,4 +12,6 @@ builder.AddProject<Projects.AliceAspire_Web>("web-frontend")
     .WithReference(rabbitMq)
     .WithReference(apiService);
 
+builder.AddProject<Projects.MessageAPI>("messageapi");
+
 builder.Build().Run();
