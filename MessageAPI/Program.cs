@@ -1,14 +1,32 @@
 using AliceAspire.ServiceDefaults;
+using InstagramApiSharp.API;
+using InstagramApiSharp.API.Builder;
+using InstagramApiSharp.Classes;
+using InstagramApiSharp.Logger;
+using MessageAPI.Services.Implementations;
+using MessageAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+IConfigurationSection userData = builder.Configuration.GetSection("UserSession");
 
-// Add services to the container.
+UserSessionData userSession = new UserSessionData
+{
+    UserName = userData["UserName"],
+    Password = userData["Password"]
+};
+
+var _instaApi = InstaApiBuilder.CreateBuilder()
+    .SetUser(userSession)
+    .UseLogger(new DebugLogger(InstagramApiSharp.Logger.LogLevel.Info))
+    .Build();
+
+builder.Services.AddSingleton<IInstaApi>(_instaApi);
+builder.Services.AddScoped<IInstagramApiService, InstagramApiService>();
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -23,8 +41,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseAuthorization();
+//app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
+
