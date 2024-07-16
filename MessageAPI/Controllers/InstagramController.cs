@@ -1,7 +1,6 @@
 ﻿using MessageAPI.Models;
 using MessageAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace MessageAPI.Controllers
 {

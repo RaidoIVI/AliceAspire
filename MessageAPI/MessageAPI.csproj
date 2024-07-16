@@ -10,23 +10,17 @@
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.7.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AliceAspire.ServiceDefaults\AliceAspire.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Libraries\InstagramApiSharp\InstagramApiSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Message\" />
     <Folder Include="wwwroot\Images\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="InstagramApiSharp">
-      <HintPath>..\..\InstagramApiSharp\src\InstagramApiSharp\bin\Debug\net461\InstagramApiSharp.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
 </Project>

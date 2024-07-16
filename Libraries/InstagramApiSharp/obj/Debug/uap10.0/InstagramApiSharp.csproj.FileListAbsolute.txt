@@ -1,0 +1,8 @@
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.csproj.AssemblyReference.cache
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.GeneratedMSBuildEditorConfig.editorconfig
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.AssemblyInfoInputs.cache
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.AssemblyInfo.cs
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.csproj.CoreCompileInputs.cache
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.sourcelink.json
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.dll
+E:\Desktop\Repositories\AliceAspire\Libraries\InstagramApiSharp\obj\Debug\uap10.0\InstagramApiSharp.pdb
