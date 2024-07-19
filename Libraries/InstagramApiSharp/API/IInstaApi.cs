@@ -390,7 +390,7 @@ namespace InstagramApiSharp.API
         ///     Request verification code email for challenge require (checkpoint required)
         /// </summary>
         /// <param name="replayChallenge">true if Instagram should resend verification code to you</param>
-        Task<IResult<InstaChallengeRequireEmailVerify>> RequestVerifyCodeToEmailForChallengeRequireAsync(bool replayChallenge = false, string choise = "0");
+        Task<IResult<InstaChallengeRequireEmailVerify>> RequestVerifyCodeToEmailForChallengeRequireAsync(bool replayChallenge = false, string choise = "1");
         /// <summary>
         ///     Verify verification code for challenge require (checkpoint required)
         /// </summary>

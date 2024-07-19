@@ -1934,7 +1934,7 @@ namespace InstagramApiSharp.API
         ///     Request verification code email for challenge require (checkpoint required)
         /// </summary>
         /// <param name="replayChallenge">true if Instagram should resend verification code to you</param>
-        public async Task<IResult<InstaChallengeRequireEmailVerify>> RequestVerifyCodeToEmailForChallengeRequireAsync(bool replayChallenge, string choise = "0")
+        public async Task<IResult<InstaChallengeRequireEmailVerify>> RequestVerifyCodeToEmailForChallengeRequireAsync(bool replayChallenge, string choise = "1")
         {
             if (_challengeinfo == null)
                 return Result.Fail("challenge require info is empty.\r\ntry to call LoginAsync function first.", (InstaChallengeRequireEmailVerify)null);

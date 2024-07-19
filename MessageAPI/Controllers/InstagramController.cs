@@ -1,6 +1,9 @@
-﻿using MessageAPI.Models;
+﻿using MessageAPI.Managers.Interfaces;
+using MessageAPI.Models.Implementations;
 using MessageAPI.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+
+using IModelSession = MessageAPI.Models.Interfaces.ISession;
 
 namespace MessageAPI.Controllers
 {
@@ -9,18 +12,22 @@ namespace MessageAPI.Controllers
     public class InstagramController : ControllerBase
     {
         private readonly IInstagramApiService _instagramService;
-        private readonly string _imageFolder;
+        private readonly IInstagramManager _instagramManager;
 
-        public InstagramController(IInstagramApiService instagramService, IWebHostEnvironment env)
+        public InstagramController(IInstagramApiService instagramService, 
+                                    IInstagramManager instagramManager)
         {
             _instagramService = instagramService;
-            _imageFolder = Path.Combine(env.WebRootPath, "Images");
+            _instagramManager = instagramManager;
         }
 
         [HttpPost("comment")]
-        public async Task<IActionResult> PostComment([FromQuery] string uri, [FromQuery] string text)
+        public async Task<IActionResult> PostComment([FromQuery] string sessionId, [FromBody] CommentMedia comment)
         {
-            ResponseData res = await _instagramService.CommentMediaAsync(uri, text);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.CommentMediaAsync(id, comment);
 
             if (res.IsSuccess)
             {
@@ -31,9 +38,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("like")]
-        public async Task<IActionResult> PostLike([FromQuery] string uri)
+        public async Task<IActionResult> PostLike([FromQuery] string sessionId, [FromBody] string uri)
         {
-            ResponseData res = await _instagramService.LikeMediaAsync(uri);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.LikeMediaAsync(id, uri);
 
             if (res.IsSuccess)
             {
@@ -44,13 +54,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("image")]
-        public async Task<IActionResult> PostImage([FromQuery] string caption, IFormFile image)
+        public async Task<IActionResult> PostImage([FromQuery] string sessionId, [FromForm] PostPhoto photo, IFormFile file)
         {
-            string imagePath = await SaveImage(image);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
 
-            ResponseData res = await _instagramService.PostImageAsync(imagePath, caption, []);
-
-            System.IO.File.Delete(imagePath);
+            ResponseData res = await _instagramManager.PostPhotoFromFormfileAsync(id, photo, file);
 
             if (res.IsSuccess)
             {
@@ -61,9 +70,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpDelete("image")]
-        public async Task<IActionResult> RemoveImage([FromQuery] string uri)
+        public async Task<IActionResult> RemoveImage([FromQuery] string sessionId, [FromBody] string uri)
         {
-            ResponseData res = await _instagramService.RemoveImageAsync(uri);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.RemoveImageAsync(id, uri);
 
             if (res.IsSuccess)
             {
@@ -74,23 +86,41 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> PostLogin()
+        public async Task<IActionResult> PostLogin([FromBody] User user)
         {
-            //"state.bin"
-            ResponseData res = await _instagramService.LoginAsync($"{_instagramService.Username}.bin");
+            ResponseData<IModelSession> res = await _instagramService.LoginAsync(user);
 
             if (res.IsSuccess)
             {
-                return NoContent();
+                return Ok(res.Data);
+            }
+
+            return BadRequest(res.ErrorMessage);
+        }
+
+        [HttpDelete("logout")]
+        public async Task<IActionResult> Logout([FromQuery] string sessionId)
+        {
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.LogoutAsync(id);
+
+            if (res.IsSuccess)
+            {
+                return Ok();
             }
 
             return BadRequest(res.ErrorMessage);
         }
 
         [HttpPost("biography")]
-        public async Task<IActionResult> PostBiography([FromBody] string text)
+        public async Task<IActionResult> PostBiography([FromQuery] string sessionId, [FromBody] string text)
         {
-            ResponseData res = await _instagramService.SetUserBiographyAsync(text);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.SetUserBiographyAsync(id, text);
 
             if (res.IsSuccess)
             {
@@ -101,13 +131,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("avatar")]
-        public async Task<IActionResult> PostAvatar(IFormFile image)
+        public async Task<IActionResult> PostAvatar([FromQuery] string sessionId, IFormFile image)
         {
-            string imagePath = await SaveImage(image);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
 
-            ResponseData res = await _instagramService.SetUserAvatarAsync(imagePath);
-
-            System.IO.File.Delete(imagePath);
+            ResponseData res = await _instagramManager.SetUserAvatarFromFormfileAsync(id, image);
 
             if (res.IsSuccess)
             {
@@ -118,9 +147,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("follow")]
-        public async Task<IActionResult> PostFollow([FromQuery] string username)
+        public async Task<IActionResult> PostFollow([FromQuery] string sessionId, [FromBody] string username)
         {
-            ResponseData res = await _instagramService.FollowAsync(username);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.FollowAsync(id, username);
 
             if (res.IsSuccess)
             {
@@ -131,26 +163,28 @@ namespace MessageAPI.Controllers
         }
 
         [HttpDelete("follow")]
-        public async Task<IActionResult> DeleteFollow([FromQuery] string username)
+        public async Task<IActionResult> DeleteFollow([FromQuery] string sessionId, [FromBody] string username)
         {
-            ResponseData res = await _instagramService.UnFollowAsync(username);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.UnFollowAsync(id, username);
 
             if (res.IsSuccess)
             {
-                return NoContent();
+                return Ok();
             }
 
             return BadRequest(res.ErrorMessage);
         }
 
         [HttpPost("story/photo")]
-        public async Task<IActionResult> PostStoryPhoto([FromQuery] string caption, IFormFile image)
+        public async Task<IActionResult> PostStoryPhoto([FromQuery] string sessionId, [FromForm] PhotoStory photo, IFormFile file)
         {
-            string imagePath = await SaveImage(image);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
 
-            ResponseData res = await _instagramService.UploadStoryPhotoAsync(imagePath, caption);
-
-            System.IO.File.Delete(imagePath);
+            ResponseData res = await _instagramManager.SharePhotoAsStoryFormfileAsync(id, photo, file);
 
             if (res.IsSuccess)
             {
@@ -161,13 +195,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("story/media")]
-        public async Task<IActionResult> PostMediaStory([FromQuery] string mediaUri, IFormFile image)
+        public async Task<IActionResult> PostMediaStory([FromQuery] string sessionId, [FromForm] MediaStory media, IFormFile file)
         {
-            string imagePath = await SaveImage(image);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
 
-            ResponseData res = await _instagramService.ShareMediaAsStoryAsync(imagePath, mediaUri);
-
-            System.IO.File.Delete(imagePath);
+            ResponseData res = await _instagramManager.ShareMediaAsStoryFormfileAsync(id, media, file);
 
             if (res.IsSuccess)
             {
@@ -178,9 +211,12 @@ namespace MessageAPI.Controllers
         }
 
         [HttpPost("story")]
-        public async Task<IActionResult> SeeStoriesPost([FromQuery] string username)
+        public async Task<IActionResult> SeeStoriesPost([FromQuery] string sessionId, [FromBody] string username)
         {
-            ResponseData res = await _instagramService.SeeAllUserStoriesAsync(username);
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            ResponseData res = await _instagramService.SeeAllUserStoriesAsync(id, username);
 
             if (res.IsSuccess)
             {
@@ -188,19 +224,6 @@ namespace MessageAPI.Controllers
             }
 
             return BadRequest(res.ErrorMessage);
-        }
-
-        private async Task<string> SaveImage(IFormFile formFile)
-        {
-            var ext = Path.GetExtension(formFile.FileName);
-            var fName = Path.ChangeExtension(Path.GetRandomFileName(), ext);
-
-            string filePath = Path.Combine(_imageFolder, fName);
-
-            using Stream fileStream = new FileStream(filePath, FileMode.Create);
-            await formFile.CopyToAsync(fileStream);
-
-            return filePath;    
         }
     }
 }

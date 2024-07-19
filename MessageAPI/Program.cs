@@ -3,6 +3,8 @@ using InstagramApiSharp.API;
 using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes;
 using InstagramApiSharp.Logger;
+using MessageAPI.Managers.Implementations;
+using MessageAPI.Managers.Interfaces;
 using MessageAPI.Services.Implementations;
 using MessageAPI.Services.Interfaces;
 
@@ -23,7 +25,8 @@ var _instaApi = InstaApiBuilder.CreateBuilder()
     .UseLogger(new DebugLogger(InstagramApiSharp.Logger.LogLevel.Info))
     .Build();
 
-builder.Services.AddSingleton<IInstaApi>(_instaApi);
+builder.Services.AddSingleton<ISessionService>(new SessionService());
+builder.Services.AddScoped<IInstagramManager, InstagramManager>();
 builder.Services.AddScoped<IInstagramApiService, InstagramApiService>();
 
 builder.Services.AddControllers();
