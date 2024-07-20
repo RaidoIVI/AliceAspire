@@ -251,7 +251,7 @@ v1.3.3.0
 - [Update] GetUserShoppableMediaAsync pagination</releaseNotes>
     <copyright>Ramtin Jokar</copyright>
     <tags>C#, Instagram, Insta, Client, Sharp, InstagramApiSharp, Client, Api, media, video, album, photo, igtv</tags>
-    <repository type="git" url="https://github.com/ramtinak/InstagramApiSharp/" commit="98ba506d8d05047e98f63eac8a3f5cd1b0decbe3" />
+    <repository type="git" url="https://github.com/ramtinak/InstagramApiSharp/" commit="396f673040720bfa9bb2ba2431f7012942131915" />
     <dependencies>
       <group targetFramework=".NETFramework4.6.1">
         <dependency id="Microsoft.CSharp" version="4.7.0" exclude="Build,Analyzers" />

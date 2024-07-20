@@ -60,7 +60,7 @@ namespace MessageAPI.Managers.Implementations
             {
                 string imagePath = await SaveImage(formFile);
 
-                mediaStory.MediaUri = imagePath;
+                mediaStory.ImageUri = imagePath;
 
                 ResponseData res = await _instagramService.ShareMediaAsStoryAsync(sessionId, mediaStory);
 

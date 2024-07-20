@@ -2,7 +2,7 @@
 {
     public class MediaStory
     {
-        public string Imageuri { get; set; } = "";
+        public string ImageUri { get; set; } = "";
 
         public required string MediaUri { get; set; }
     }

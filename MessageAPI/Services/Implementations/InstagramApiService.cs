@@ -340,7 +340,7 @@ namespace MessageAPI.Services.Implementations
                 // leave zero, if you don't know how height and width is it.
                 Height = 0,
                 Width = 0,
-                Uri = mediaStory.Imageuri
+                Uri = mediaStory.ImageUri
             };
 
             var res = await api.StoryProcessor.ShareMediaAsStoryAsync(mediaImage, new InstaMediaStoryUpload() { MediaPk = long.Parse(media.Value.Pk) });
