@@ -6,7 +6,7 @@ namespace InstagramApiSharp.Classes.Android.DeviceInfo
     [Serializable]
     public class AndroidVersion
     {
-        internal AndroidVersion()
+        public AndroidVersion()
         {
         }
 

@@ -1,34 +1,42 @@
 ﻿using InstagramApiSharp.API;
+using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes.Models;
-using MessageAPI.Models;
+using MessageAPI.Models.Implementations;
+using MessageAPI.Models.Interfaces;
 using MessageAPI.Services.Interfaces;
+
+using IModelSession = MessageAPI.Models.Interfaces.ISession;
 
 namespace MessageAPI.Services.Implementations
 {
     public class InstagramApiService : IInstagramApiService
     {
-        private readonly IInstaApi _api;
-
-        public string Username => _api.GetLoggedUser().UserName;
-
-        public InstagramApiService(IInstaApi api)
+        private readonly ISessionService _sessionService;
+        //private readonly IInstaApi? _api;
+        
+        public InstagramApiService(ISessionService sessionService)
         {
-            _api = api;
+            _sessionService = sessionService;
         }
 
-        public async Task<ResponseData> CommentMediaAsync(string uri, string text)
+        public async Task<ResponseData> CommentMediaAsync(Guid sessionId, CommentMedia comment)
         {
-            string id = await GetMediaIdByUriAsync(uri);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            string id = await GetMediaIdByUriAsync(api, comment.Uri);
 
             if (string.IsNullOrEmpty(id))
             {
                 Console.WriteLine("Empty id");
-                return new() { IsSuccess = false, ErrorMessage = $"Comment media: can't take media id from uri {uri}" };
+                return new() { IsSuccess = false, ErrorMessage = $"Comment media: can't take media id from uri {comment.Uri}" };
             }
 
             //var media = await _api.MediaProcessor.GetMediaByIdAsync(id);
 
-            var commentResult = await _api.CommentProcessor.CommentMediaAsync(id, text);
+            var commentResult = await api.CommentProcessor.CommentMediaAsync(id, comment.Text);
 
             if (commentResult.Succeeded)
             {
@@ -42,9 +50,14 @@ namespace MessageAPI.Services.Implementations
             }
         }
 
-        public async Task<ResponseData> FollowAsync(string username)
+        public async Task<ResponseData> FollowAsync(Guid sessionId, string username)
         {
-            var user = await _api.UserProcessor.GetUserAsync(username);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var user = await api.UserProcessor.GetUserAsync(username);
 
             if (!user.Succeeded)
             {
@@ -52,7 +65,7 @@ namespace MessageAPI.Services.Implementations
                 return new() { IsSuccess = false, ErrorMessage = $"Error on follow on user {username}: {user.Info.Message}" };
             }
 
-            var res = await _api.UserProcessor.FollowUserAsync(user.Value.Pk);
+            var res = await api.UserProcessor.FollowUserAsync(user.Value.Pk);
 
             if (!res.Succeeded)
             {
@@ -63,9 +76,14 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
-        public async Task<ResponseData> LikeMediaAsync(string uri)
+        public async Task<ResponseData> LikeMediaAsync(Guid sessionId, string uri)
         {
-            string id = await GetMediaIdByUriAsync(uri);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            string id = await GetMediaIdByUriAsync(api, uri);
 
             if (string.IsNullOrEmpty(id))
             {
@@ -73,14 +91,14 @@ namespace MessageAPI.Services.Implementations
                 return new() { IsSuccess = false, ErrorMessage = $"Like media: can't take media id from uri {uri}" };
             }
 
-            var content = await _api.MediaProcessor.GetMediaByIdAsync(id);
+            var content = await api.MediaProcessor.GetMediaByIdAsync(id);
 
             if (!content.Succeeded)
             {
                 return new() { IsSuccess = false, ErrorMessage = content.Info.Message };
             }
 
-            var likeResponse = await _api.MediaProcessor.LikeMediaAsync(id);
+            var likeResponse = await api.MediaProcessor.LikeMediaAsync(id);
 
             if (likeResponse.Succeeded)
             {
@@ -95,27 +113,17 @@ namespace MessageAPI.Services.Implementations
             }
         }
 
-        public async Task<ResponseData> LoginAsync(string stateFile = "")
+        public async Task<ResponseData<IModelSession>> LoginAsync(User user)
         {
-            if (!string.IsNullOrEmpty(stateFile))
+            IInstaApi api = InstaApiBuilder.CreateBuilder()
+                                            .SetUser(new() { UserName = user.InstaLogin, Password = user.InstaPasswordHash })
+                                            .Build();
+
+            if (user.State is not null)
             {
                 try
                 {
-                    // load session file if exists
-                    if (File.Exists(stateFile))
-                    {
-                        //Console.WriteLine("Loading state from file");
-                        using (var fr = new StreamReader(stateFile))
-                        {
-                            string data = fr.ReadToEnd();
-
-                            _api.LoadStateDataFromString(data);
-                        }
-                    }
-                    else
-                    {
-                        File.Create(stateFile);
-                    }
+                    api.LoadStateDataFromObject(user.State);
                 }
                 catch (Exception e)
                 {
@@ -123,43 +131,22 @@ namespace MessageAPI.Services.Implementations
                 }
             }
 
-            if (!_api.IsUserAuthenticated)
+            if (!api.IsUserAuthenticated)
             {
-                await _api.SendRequestsBeforeLoginAsync();
+                await api.SendRequestsBeforeLoginAsync();
 
                 // wait 5 seconds
                 await Task.Delay(5000);
 
-                var logInResult = await _api.LoginAsync();
+                var logInResult = await api.LoginAsync();
 
                 if (!logInResult.Succeeded && logInResult.Info.NeedsChallenge)
                 {
-                    IMailVerifyService verifyService = new MailRuService("kosach_dmitriy@mail.ru", "6bhNM4ZA0rAPjBWCff7V");
+                    ResponseData mailChallenge = await DoMailChallenge(api, user);
 
-                    await Task.Delay(3000);
-
-                    var info = await _api.GetChallengeRequireVerifyMethodAsync();
-
-                    await Task.Delay(2000);
-
-                    var requestVerify = await _api.RequestVerifyCodeToEmailForChallengeRequireAsync(choise: info.Value.StepData.Choice);
-                    //_api.RequestVerifyCodeToSMSForChallengeRequireAsync(choise: info.Value.StepData.Choice); 
-                    //_api.RequestVerifyCodeToEmailForChallengeRequireAsync(choise: info.Value.StepData.Choice);
-
-                    if (!requestVerify.Succeeded)
+                    if (!mailChallenge.IsSuccess)
                     {
-                        return new() { IsSuccess = false, ErrorMessage = $"Error on send request verify code: {requestVerify.Info.Message}" };
-                    }
-
-                    await Task.Delay(3000);
-
-                    string code = verifyService.GetVerifyCode();
-
-                    var resChalleng = await _api.VerifyCodeForChallengeRequireAsync(code, choise: info.Value.StepData.Choice);
-
-                    if (!resChalleng.Succeeded)
-                    {
-                        return new() { IsSuccess = false, ErrorMessage = $"Error on send verify code: {resChalleng.Info.Message}" };
+                        return new() { IsSuccess = false, ErrorMessage = mailChallenge.ErrorMessage };
                     }
                 }
                 else if (!logInResult.Succeeded)
@@ -168,43 +155,64 @@ namespace MessageAPI.Services.Implementations
                     return new() { IsSuccess = false, ErrorMessage = logInResult.Info.Message };
                 }
 
-                if (_api.IsUserAuthenticated)
+                if (!api.IsUserAuthenticated)
                 {
-                    Console.WriteLine("Login is completed");
-                }
-
-                if (!string.IsNullOrEmpty(stateFile))
-                {
-                    var state = _api.GetStateDataAsString();
-                    using var sw = new StreamWriter(stateFile);
-                    sw.WriteLine(state);
+                    return new() { IsSuccess = false, ErrorMessage = "Login to account: unknown error" };
                 }
             }
 
-            await _api.SendRequestsAfterLoginAsync();
+            await api.SendRequestsAfterLoginAsync();
+
+            user.State = api.GetStateDataAsObject();
+
+            Session session = new(user, api);
+
+            await _sessionService.AddSession(session);
+
+            return new ResponseData<IModelSession>() { Data = session };
+        }
+
+        public async Task<ResponseData> LogoutAsync(Guid sessionId)
+        {
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var res = await api.LogoutAsync();
+
+            if (!res.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = res.Info.Message };
+            }
 
             return new();
         }
 
-        public async Task<ResponseData> PostImageAsync(string imagePath, string caption, IEnumerable<string> userTags)
+        public async Task<ResponseData> PostImageAsync(Guid sessionId, PostPhoto postPhoto)
         {
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
             var mediaImage = new InstaImageUpload
             {
                 // leave zero, if you don't know how height and width is it.
                 Height = 0,
                 Width = 0,
-                Uri = imagePath
+                Uri = postPhoto.ImageUri
             };
 
             mediaImage.UserTags
-                .AddRange(userTags.Select(u => new InstaUserTagUpload() 
+                .AddRange(postPhoto.UserTags.Select(u => new InstaUserTagUpload() 
                 { 
                     Username = u, 
                     X = 0, 
                     Y = 1 
                 }));
 
-            var res = await _api.MediaProcessor.UploadPhotoAsync(mediaImage, caption);
+            var res = await api.MediaProcessor.UploadPhotoAsync(mediaImage, postPhoto.Caption);
 
             if (!res.Succeeded)
             {
@@ -218,9 +226,14 @@ namespace MessageAPI.Services.Implementations
             }
         }
 
-        public async Task<ResponseData> RemoveImageAsync(string uri)
+        public async Task<ResponseData> RemoveImageAsync(Guid sessionId, string uri)
         {
-            string id = await GetMediaIdByUriAsync(uri);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            string id = await GetMediaIdByUriAsync(api, uri);
 
             if (string.IsNullOrEmpty(id))
             {
@@ -228,7 +241,7 @@ namespace MessageAPI.Services.Implementations
                 return new() { IsSuccess = false, ErrorMessage = $"Remove image: can't take media id from uri {uri}" };
             }
 
-            var res = await _api.MediaProcessor.DeleteMediaAsync(id, InstaMediaType.Image);
+            var res = await api.MediaProcessor.DeleteMediaAsync(id, InstaMediaType.Image);
 
             if (!res.Succeeded)
             {
@@ -242,9 +255,14 @@ namespace MessageAPI.Services.Implementations
             }
         }
 
-        public async Task<ResponseData> SeeAllUserStoriesAsync(string username)
+        public async Task<ResponseData> SeeAllUserStoriesAsync(Guid sessionId, string username)
         {
-            var user = await _api.UserProcessor.GetUserAsync(username);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var user = await api.UserProcessor.GetUserAsync(username);
 
             if (!user.Succeeded)
             {
@@ -252,7 +270,7 @@ namespace MessageAPI.Services.Implementations
                 return new() { IsSuccess = false, ErrorMessage = user.Info.Message };
             }   
 
-            var res = await _api.StoryProcessor.GetUserStoryAsync(user.Value.Pk);
+            var res = await api.StoryProcessor.GetUserStoryAsync(user.Value.Pk);
 
             if (!res.Succeeded)
             {
@@ -262,7 +280,7 @@ namespace MessageAPI.Services.Implementations
 
             foreach (var item in res.Value.Items)
             {
-                var isSee = await _api.StoryProcessor.MarkStoryAsSeenAsync(item.Id, 0);
+                var isSee = await api.StoryProcessor.MarkStoryAsSeenAsync(item.Id, 0);
 
                 if (!isSee.Succeeded || !isSee.Value)
                 {
@@ -273,9 +291,14 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
-        public async Task<ResponseData> SetUserBiographyAsync(string text)
+        public async Task<ResponseData> SetUserBiographyAsync(Guid sessionId, string text)
         {
-            var setBio = await _api.AccountProcessor.SetBiographyAsync(text);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var setBio = await api.AccountProcessor.SetBiographyAsync(text);
 
             if (setBio.Succeeded)
             {
@@ -288,17 +311,23 @@ namespace MessageAPI.Services.Implementations
             }
         }
 
-        public async Task<ResponseData> ShareMediaAsStoryAsync(string imagePath, string mediaUri)
+        public async Task<ResponseData> ShareMediaAsStoryAsync(Guid sessionId, MediaStory mediaStory)
         {
-            string mediaId = await GetMediaIdByUriAsync(mediaUri);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            string mediaId = await GetMediaIdByUriAsync(api, mediaStory.MediaUri);
 
             if (string.IsNullOrEmpty(mediaId))
             {
-                Console.WriteLine($"Can't take media id from uri {mediaUri}");
-                return new() { IsSuccess = false, ErrorMessage = $"Share media as story: can't take media id from uri {mediaUri}" };
+                Console.WriteLine($"Can't take media id from uri {mediaStory.MediaUri}");
+                return new() { IsSuccess = false, 
+                        ErrorMessage = $"Share media as story: can't take media id from uri {mediaStory.MediaUri}" };
             }
 
-            var media = await _api.MediaProcessor.GetMediaByIdAsync(mediaId);
+            var media = await api.MediaProcessor.GetMediaByIdAsync(mediaId);
 
             if (!media.Succeeded)
             {
@@ -311,10 +340,10 @@ namespace MessageAPI.Services.Implementations
                 // leave zero, if you don't know how height and width is it.
                 Height = 0,
                 Width = 0,
-                Uri = imagePath
+                Uri = mediaStory.ImageUri
             };
 
-            var res = await _api.StoryProcessor.ShareMediaAsStoryAsync(mediaImage, new InstaMediaStoryUpload() { MediaPk = long.Parse(media.Value.Pk) });
+            var res = await api.StoryProcessor.ShareMediaAsStoryAsync(mediaImage, new InstaMediaStoryUpload() { MediaPk = long.Parse(media.Value.Pk) });
 
             if (!res.Succeeded)
             {
@@ -325,9 +354,14 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
-        public async Task<ResponseData> UnFollowAsync(string username)
+        public async Task<ResponseData> UnFollowAsync(Guid sessionId, string username)
         {
-            var user = await _api.UserProcessor.GetUserAsync(username);
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var user = await api.UserProcessor.GetUserAsync(username);
 
             if (!user.Succeeded)
             {
@@ -335,7 +369,7 @@ namespace MessageAPI.Services.Implementations
                 return new() { IsSuccess = false, ErrorMessage = $"Error on get user by username {username}: {user.Info.Message }" };
             }
 
-            var res = await _api.UserProcessor.UnFollowUserAsync(user.Value.Pk);
+            var res = await api.UserProcessor.UnFollowUserAsync(user.Value.Pk);
 
             if (!res.Succeeded)
             {
@@ -346,17 +380,22 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
-        public async Task<ResponseData> UploadStoryPhotoAsync(string imagePath, string caption)
+        public async Task<ResponseData> UploadStoryPhotoAsync(Guid sessionId, PhotoStory photoStory)
         {
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
             var mediaImage = new InstaImage
             {
                 // leave zero, if you don't know how height and width is it.
                 Height = 0,
                 Width = 0,
-                Uri = imagePath
+                Uri = photoStory.ImageUri
             };
 
-            var res = await _api.StoryProcessor.UploadStoryPhotoAsync(mediaImage, caption);
+            var res = await api.StoryProcessor.UploadStoryPhotoAsync(mediaImage, photoStory.Caption);
 
             if (!res.Succeeded)
             {
@@ -367,11 +406,30 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
-        private async Task<string> GetMediaIdByUriAsync(string uri)
+        public async Task<ResponseData> SetUserAvatarAsync(Guid sessionId,  string imagePath)
+        {
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            byte[] imageBytes = File.ReadAllBytes(imagePath);
+
+            var res = await api.AccountProcessor.ChangeProfilePictureAsync(imageBytes);
+
+            if (!res.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = $"Error on change user avatar: {res.Info.Message}" };
+            }
+
+            return new();
+        }
+
+        private static async Task<string> GetMediaIdByUriAsync(IInstaApi api, string uri)
         {
             if (Uri.TryCreate(uri, new UriCreationOptions(), out Uri? res))
             {
-                var media = await _api.MediaProcessor.GetMediaIdFromUrlAsync(res);
+                var media = await api.MediaProcessor.GetMediaIdFromUrlAsync(res);
 
                 if (media.Succeeded)
                 {
@@ -384,15 +442,42 @@ namespace MessageAPI.Services.Implementations
             return string.Empty;
         }
 
-        public async Task<ResponseData> SetUserAvatarAsync(string imagePath)
+        private static async Task<ResponseData<IModelSession>> DoMailChallenge(IInstaApi api, IUser user)
         {
-            byte[] imageBytes = File.ReadAllBytes(imagePath);
+            IMailVerifyService verifyService = new MailRuService(user.MailLogin, user.MailPasswordHash);
 
-            var res = await _api.AccountProcessor.ChangeProfilePictureAsync(imageBytes);
+            await Task.Delay(3000);
 
-            if (!res.Succeeded)
+            var info = await api.GetChallengeRequireVerifyMethodAsync();
+
+            if (!info.Succeeded) 
             {
-                return new() { IsSuccess = false, ErrorMessage = $"Error on change user avatar: {res.Info.Message}" };
+                return new() { IsSuccess = false, ErrorMessage = info.Info.Message };
+            }
+
+            if (info.Value.StepData.Choice != "0" && info.Value.StepData.Choice != "1")
+            {
+                return new() { IsSuccess = false, ErrorMessage = $"Choise = {info.Value.StepData.Choice}. Possibly, you logged into your account from another device." };
+            }
+
+            await Task.Delay(2000);
+
+            var requestVerify = await api.RequestVerifyCodeToEmailForChallengeRequireAsync();//choise: info.Value.StepData.Choice);
+
+            if (!requestVerify.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = $"Error on send request verify code: {requestVerify.Info.Message}" };
+            }
+
+            await Task.Delay(3000);
+
+            string code = verifyService.GetVerifyCode();
+
+            var resChalleng = await api.VerifyCodeForChallengeRequireAsync(code);//, choise: info.Value.StepData.Choice);
+
+            if (!resChalleng.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = $"Error on send verify code: {resChalleng.Info.Message}" };
             }
 
             return new();

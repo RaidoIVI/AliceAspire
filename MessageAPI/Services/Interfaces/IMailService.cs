@@ -1,4 +1,4 @@
-﻿namespace MessageAPI.Services.Implementations
+﻿namespace MessageAPI.Services.Interfaces
 {
     public interface IMailVerifyService
     {

@@ -1,10 +1,10 @@
 ﻿using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Search;
-using MessageAPI.Services.Implementations;
+using MessageAPI.Services.Interfaces;
 using System.Text.RegularExpressions;
 
-namespace MessageAPI.Services.Interfaces
+namespace MessageAPI.Services.Implementations
 {
     public class MailRuService : IMailVerifyService
     {
@@ -20,7 +20,7 @@ namespace MessageAPI.Services.Interfaces
         public string GetVerifyCode()
         {
             using var client = new ImapClient();
-            
+
             client.Connect("imap.mail.ru", 993, true);
 
             client.Authenticate(_email, _password);
@@ -32,13 +32,13 @@ namespace MessageAPI.Services.Interfaces
             //<p style="margin:10px 0 10px 0;color:#565a5c;font-size:18px;"><font size="6">(\\d{6})</font></p>
             while (true)
             {
-                var messages = inbox.Search(FilterSearchQuery.FromContains("Instagram"));//.And(FilterSearchQuery.New));
+                var messages = inbox.Search(SearchQuery.FromContains("Instagram"));//.And(FilterSearchQuery.New));
 
                 //var message = inbox.GetMessage(messages.Last());
 
                 //var txt = message.GetTextBody(MimeKit.Text.TextFormat.Text);
 
-                foreach ( var msg in messages.Reverse())
+                foreach (var msg in messages.Reverse())
                 {
                     var message = inbox.GetMessage(msg);
 

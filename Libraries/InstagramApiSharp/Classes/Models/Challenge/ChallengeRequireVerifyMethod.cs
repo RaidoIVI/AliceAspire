@@ -45,7 +45,7 @@ namespace InstagramApiSharp.Classes
         [JsonProperty("phone_number")]
         public string PhoneNumber { get; set; }
 
-        public bool SubmitPhoneRequired => PhoneNumber.ToLower().Contains("none");
+        //public bool SubmitPhoneRequired => PhoneNumber.ToLower().Contains("none");
     }
 
 }
