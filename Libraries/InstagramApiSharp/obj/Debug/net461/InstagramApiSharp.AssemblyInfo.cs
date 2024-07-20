@@ -33,7 +33,7 @@ Support:
 
 See example projects and wiki pages to find out how this library works.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.7.4.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.7.4.0+396f673040720bfa9bb2ba2431f7012942131915")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.7.4.0+a46b343792771aef90e79c8aa38feb2bb675681d")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InstagramApiSharp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.7.4.0")]
 [assembly: System.Reflection.AssemblyMetadataAttribute("RepositoryUrl", "https://github.com/ramtinak/InstagramApiSharp/")]
