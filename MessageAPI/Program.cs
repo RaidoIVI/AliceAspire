@@ -1,8 +1,4 @@
 using AliceAspire.ServiceDefaults;
-using InstagramApiSharp.API;
-using InstagramApiSharp.API.Builder;
-using InstagramApiSharp.Classes;
-using InstagramApiSharp.Logger;
 using MessageAPI.Managers.Implementations;
 using MessageAPI.Managers.Interfaces;
 using MessageAPI.Services.Implementations;
@@ -11,19 +7,6 @@ using MessageAPI.Services.Interfaces;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
-
-IConfigurationSection userData = builder.Configuration.GetSection("UserSession");
-
-UserSessionData userSession = new UserSessionData
-{
-    UserName = userData["UserName"],
-    Password = userData["Password"]
-};
-
-var _instaApi = InstaApiBuilder.CreateBuilder()
-    .SetUser(userSession)
-    .UseLogger(new DebugLogger(InstagramApiSharp.Logger.LogLevel.Info))
-    .Build();
 
 builder.Services.AddSingleton<ISessionService>(new SessionService());
 builder.Services.AddScoped<IInstagramManager, InstagramManager>();

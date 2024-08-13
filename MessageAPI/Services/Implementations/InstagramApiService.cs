@@ -1,10 +1,10 @@
-﻿using InstagramApiSharp.API;
+﻿using InstagramApiSharp;
+using InstagramApiSharp.API;
 using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes.Models;
 using MessageAPI.Models.Implementations;
 using MessageAPI.Models.Interfaces;
 using MessageAPI.Services.Interfaces;
-
 using IModelSession = MessageAPI.Models.Interfaces.ISession;
 
 namespace MessageAPI.Services.Implementations
@@ -12,11 +12,14 @@ namespace MessageAPI.Services.Implementations
     public class InstagramApiService : IInstagramApiService
     {
         private readonly ISessionService _sessionService;
+        private readonly string _registrationApi;
         //private readonly IInstaApi? _api;
         
-        public InstagramApiService(ISessionService sessionService)
+        public InstagramApiService(ISessionService sessionService,
+                                        IConfiguration config)
         {
             _sessionService = sessionService;
+            _registrationApi = config["RegistrationApi"] ?? throw new KeyNotFoundException("Ошибка в получении адреса апи для регистрации");
         }
 
         public async Task<ResponseData> CommentMediaAsync(Guid sessionId, CommentMedia comment)
@@ -425,6 +428,94 @@ namespace MessageAPI.Services.Implementations
             return new();
         }
 
+        public async Task<ResponseData<InstaSectionMedia>> GetMediaByTagAsync(Guid sessionId, string tag)
+        {
+            if (string.IsNullOrEmpty(tag))
+                return new() { IsSuccess = false, ErrorMessage = "Tag cannot be empty" };
+
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var res = await api.HashtagProcessor.GetRecentHashtagMediaListAsync(tag, PaginationParameters.MaxPagesToLoad(1));
+
+            if (!res.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = res.Info.Message };
+            }
+
+            return new() {  Data = res.Value };
+        }
+
+        public async Task<ResponseData<InstaMediaList>> GetMediaByUserAsync(Guid sessionId, string username)
+        {
+            if (string.IsNullOrEmpty(username))
+                return new() { IsSuccess = false, ErrorMessage = "Tag cannot be empty" };
+
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var res = await api.UserProcessor.GetUserMediaAsync(username, PaginationParameters.MaxPagesToLoad(1));
+
+            if (!res.Succeeded)
+            {
+                return new() { IsSuccess = false, ErrorMessage = res.Info.Message };
+            }
+
+            return new() { Data = res.Value };
+        }
+
+        public async Task<ResponseData<User>> RegistrationAsync(MailData mailData)
+        {
+            User user = new() { InstaLogin = "", InstaPasswordHash = "", MailLogin = mailData.Login, MailPasswordHash = mailData.Password };
+
+            using(HttpClient  httpClient = new HttpClient())
+            {
+                HttpResponseMessage response = await httpClient.PostAsync($"{_registrationApi}/create_account", JsonContent.Create(user));
+
+                if (response.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    RegistrationResponse? regResponse = await response.Content.ReadFromJsonAsync<RegistrationResponse>();
+
+                    if (regResponse is null || regResponse.Data is null)
+                    {
+                        return new() { IsSuccess = false, ErrorMessage = "Cannot convert registration response to object" };
+                    }
+
+                    user.InstaLogin = regResponse.Data.Username;
+                    user.InstaPasswordHash = regResponse.Data.Password;
+
+                    return new() { Data = user };
+                }
+                else
+                {
+                    RegistrationResponse? regResponse = await response.Content.ReadFromJsonAsync<RegistrationResponse>();
+
+                    return new() { IsSuccess = false, ErrorMessage = regResponse?.Message ?? "Cannot convert registration response to object" };
+                }
+            }
+        }
+
+        public async Task<ResponseData> TestAsync(Guid sessionId)
+        {
+            if (!_sessionService.Exist(sessionId))
+                return new() { IsSuccess = false, ErrorMessage = $"session with id {sessionId} does not exist" };
+
+            IInstaApi api = _sessionService[sessionId].InstaApi;
+
+            var curUser = await api.GetCurrentUserAsync();
+
+            if (!curUser.Succeeded)
+                return new() { IsSuccess = false, ErrorMessage = "Get current user fail" };
+
+            var data = await api.UserProcessor.GetFullUserInfoAsync(curUser.Value.Pk);
+
+            return new();
+        }
+
         private static async Task<string> GetMediaIdByUriAsync(IInstaApi api, string uri)
         {
             if (Uri.TryCreate(uri, new UriCreationOptions(), out Uri? res))
@@ -484,3 +575,10 @@ namespace MessageAPI.Services.Implementations
         }
     }
 }
+
+public class Bob
+{
+    public string Status { get; set; } = "";
+    public string Message { get; set; } = "";
+}
+

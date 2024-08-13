@@ -85,6 +85,19 @@ namespace MessageAPI.Controllers
             return BadRequest(res.ErrorMessage);
         }
 
+        [HttpPost("registration")]
+        public async Task<IActionResult> RegistrationAccount([FromBody] MailData mail)
+        {
+            var res = await _instagramService.RegistrationAsync(mail);
+
+            if (res.IsSuccess)
+            {
+                return Ok(res.Data);
+            }
+
+            return BadRequest(res.ErrorMessage);
+        }
+
         [HttpPost("login")]
         public async Task<IActionResult> PostLogin([FromBody] User user)
         {
@@ -224,6 +237,45 @@ namespace MessageAPI.Controllers
             }
 
             return BadRequest(res.ErrorMessage);
+        }
+
+        [HttpGet("media/tag")]
+        public async Task<IActionResult> GetMediaByTag([FromQuery] string sessionId, [FromQuery] string tag)
+        {
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            var res = await _instagramService.GetMediaByTagAsync(id, tag);
+
+            if (res.IsSuccess)
+                return Ok(res.Data);
+
+            return BadRequest(res.ErrorMessage);
+        }
+
+        [HttpGet("media/user")]
+        public async Task<IActionResult> GetMediaByUser([FromQuery] string sessionId, [FromQuery] string username)
+        {
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            var res = await _instagramService.GetMediaByUserAsync(id, username);
+
+            if (res.IsSuccess)
+                return Ok(res.Data);
+
+            return BadRequest(res.ErrorMessage);
+        }
+
+        [HttpGet("test")]
+        public async Task<IActionResult> Test([FromQuery] string sessionId)
+        {
+            if (!Guid.TryParse(sessionId, out var id))
+                return BadRequest($"Impossible convert {sessionId} to Guid");
+
+            var res = await _instagramService.TestAsync(id);
+
+            return Ok(res);
         }
     }
 }

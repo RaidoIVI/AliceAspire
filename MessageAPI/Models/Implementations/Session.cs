@@ -10,7 +10,7 @@ namespace MessageAPI.Models.Implementations
 
 
         [NonSerialized]
-        private IInstaApi _instaApi;
+        private readonly IInstaApi _instaApi;
         public IInstaApi InstaApi { get => _instaApi; }
 
         public Session(IUser user, IInstaApi instaApi)

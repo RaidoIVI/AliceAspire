@@ -1,5 +1,5 @@
-﻿using MessageAPI.Models.Implementations;
-using MessageAPI.Models.Interfaces;
+﻿using InstagramApiSharp.Classes.Models;
+using MessageAPI.Models.Implementations;
 using IModelSession = MessageAPI.Models.Interfaces.ISession;
 
 namespace MessageAPI.Services.Interfaces
@@ -31,5 +31,13 @@ namespace MessageAPI.Services.Interfaces
         public Task<ResponseData> ShareMediaAsStoryAsync(Guid sessionId, MediaStory mediaStory);
 
         public Task<ResponseData> SeeAllUserStoriesAsync(Guid sessionId, string username);
+
+        public Task<ResponseData<InstaSectionMedia>> GetMediaByTagAsync(Guid sessionId, string tag);
+
+        public Task<ResponseData<InstaMediaList>> GetMediaByUserAsync(Guid sessionId, string username);
+
+        public Task<ResponseData<User>> RegistrationAsync(MailData mailData);
+
+        public Task<ResponseData> TestAsync(Guid sessionId);
     }
 }

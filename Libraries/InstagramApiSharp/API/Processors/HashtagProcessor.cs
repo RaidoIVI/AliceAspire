@@ -211,9 +211,9 @@ namespace InstagramApiSharp.API.Processors
                 if (!mediaResponse.Succeeded)
                 {
                     if (mediaResponse.Value != null)
-                        Result.Fail(mediaResponse.Info, Convert(mediaResponse.Value));
+                        return Result.Fail(mediaResponse.Info, Convert(mediaResponse.Value));
                     else
-                        Result.Fail(mediaResponse.Info, default(InstaSectionMedia));
+                        return Result.Fail(mediaResponse.Info, default(InstaSectionMedia));
                 }
                 paginationParameters.NextMediaIds = mediaResponse.Value.NextMediaIds;
                 paginationParameters.NextPage = mediaResponse.Value.NextPage;
